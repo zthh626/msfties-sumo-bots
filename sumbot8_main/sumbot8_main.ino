@@ -17,9 +17,28 @@ int INA2_MC2 = 16;
 int INB1_MC2 = 14;
 int INB2_MC2 = 4;
 
-XboxSeriesXControllerESP32_asukiaaa::Core;
 const char *XBOX_CONTROLLER_ADDRESS = "0c:35:26:e9:d8:e3";
-xboxController(XBOX_CONTROLLER_ADDRESS);
+
+XboxSeriesXControllerESP32_asukiaaa::Core
+    xboxController(XBOX_CONTROLLER_ADDRESS);
+
+struct XboxControllerState
+{
+  float joyLVertRate;
+  float joyLHoriRate;
+  bool bButtonPressed;
+};
+
+XboxControllerState pollXboxController();
+void setupXboxController();
+void setupPins();
+void setup();
+void loop();
+void driveForwardMax();
+void driveBackwardMax();
+void stopMotors();
+void rightTurn();
+void leftTurn();
 
 void setupXboxController()
 {
@@ -60,26 +79,37 @@ void setup()
 
 void loop()
 {
-  xboxController.onLoop();
-  void driveForwardMax();
+  // Poll the Xbox controller for the current state
+  XboxControllerState state = pollXboxController();
 
-  Serial.println("at " + String(millis()));
-  delay(500);
+  // Define tolerance for joystick center position
+  const float tolerance = 0.02; // 2% tolerance
 
-  // goal is to poll for bluetooth signals to instruct robot to move
-  /**sample instructions:
-      RT button press+hold = drive forward and increase speed linearly to max
-      B button press = turbo mode (10 secs)
-      LT button press+hold = reverse and increase speed linearly to max
-      RB button press + hold = turn robot sideways to right until button release
-      LB button press + hold = turn robot sideways to left until button release
-  **/
+  // Joystick vertical values:
+  // - Center: 0.50 (with tolerance range for stopping)
+  // - Top: 0
+  // - Bottom: 1
+  if (state.joyLVertRate < (0.50 - tolerance))
+  {
+    driveForwardMax();
+  }
+  else if (state.joyLVertRate > (0.50 + tolerance))
+  {
+    driveBackwardMax();
+  }
+  else
+  {
+    stopMotors();
+  }
 
-  // NOTE: when switching motor direction from forward to backward or vice versa, speed needs to be adjusted to 0 through PWM before switching
+  // Add a small delay to prevent excessive polling
+  delay(1000);
 }
 
-void pollXboxController()
+XboxControllerState pollXboxController()
 {
+  XboxControllerState state = {0.0, 0.0, false};
+
   if (xboxController.isConnected())
   {
     if (xboxController.isWaitingForFirstNotification())
@@ -92,10 +122,14 @@ void pollXboxController()
       Serial.print(xboxController.xboxNotif.toString());
       unsigned long receivedAt = xboxController.getReceiveNotificationAt();
       uint16_t joystickMax = XboxControllerNotificationParser::maxJoy;
-      Serial.print("joyLHori rate: ");
-      Serial.println((float)xboxController.xboxNotif.joyLHori / joystickMax);
+      state.joyLVertRate = (float)xboxController.xboxNotif.joyLVert / joystickMax;
+      state.joyLHoriRate = (float)xboxController.xboxNotif.joyLHori / joystickMax;
+      state.bButtonPressed = xboxController.xboxNotif.btnB;
       Serial.print("joyLVert rate: ");
-      Serial.println((float)xboxController.xboxNotif.joyLVert / joystickMax);
+      Serial.println(state.joyLVertRate);
+      Serial.print("joyLHori rate: ");
+      Serial.println(state.joyLHoriRate);
+      Serial.println("B button pressed: " + String(state.bButtonPressed));
       Serial.println("battery " + String(xboxController.battery) + "%");
       Serial.println("received at " + String(receivedAt));
     }
@@ -108,11 +142,13 @@ void pollXboxController()
       ESP.restart();
     }
   }
+
+  return state;
 }
 
 void driveForwardMax()
 {
-  // Initialize motor controller for forward motion
+  // Set motors for forward motion
   digitalWrite(INA1_MC1, LOW);
   digitalWrite(INA2_MC1, LOW);
   digitalWrite(INA1_MC2, LOW);
@@ -121,15 +157,38 @@ void driveForwardMax()
   digitalWrite(INB1_MC1, HIGH);
   digitalWrite(INB2_MC1, HIGH);
   digitalWrite(INB1_MC2, HIGH);
-  digitalWrite(INB2_MC1, HIGH);
+  digitalWrite(INB2_MC2, HIGH);
 
   // Set speed to max
   analogWrite(PWM1_MC1, 255);
   analogWrite(PWM2_MC1, 255);
   analogWrite(PWM1_MC2, 255);
   analogWrite(PWM2_MC2, 255);
+}
 
-  // Stop motors
+void driveBackwardMax()
+{
+  // Set motors for backward motion
+  digitalWrite(INA1_MC1, HIGH);
+  digitalWrite(INA2_MC1, HIGH);
+  digitalWrite(INA1_MC2, HIGH);
+  digitalWrite(INA2_MC2, HIGH);
+
+  digitalWrite(INB1_MC1, LOW);
+  digitalWrite(INB2_MC1, LOW);
+  digitalWrite(INB1_MC2, LOW);
+  digitalWrite(INB2_MC2, LOW);
+
+  // Set speed to max
+  analogWrite(PWM1_MC1, 255);
+  analogWrite(PWM2_MC1, 255);
+  analogWrite(PWM1_MC2, 255);
+  analogWrite(PWM2_MC2, 255);
+}
+
+void stopMotors()
+{
+  // Stop all motors
   digitalWrite(INA1_MC1, LOW);
   digitalWrite(INA2_MC1, LOW);
   digitalWrite(INA1_MC2, LOW);
@@ -138,7 +197,13 @@ void driveForwardMax()
   digitalWrite(INB1_MC1, LOW);
   digitalWrite(INB2_MC1, LOW);
   digitalWrite(INB1_MC2, LOW);
-  digitalWrite(INB2_MC1, LOW);
+  digitalWrite(INB2_MC2, LOW);
+
+  // Set speed to zero
+  analogWrite(PWM1_MC1, 0);
+  analogWrite(PWM2_MC1, 0);
+  analogWrite(PWM1_MC2, 0);
+  analogWrite(PWM2_MC2, 0);
 }
 
 // future functions
