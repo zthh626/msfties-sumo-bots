@@ -80,26 +80,36 @@ void setup()
 void loop()
 {
   // Poll the Xbox controller for the current state
-  XboxControllerState state = pollXboxController();
+  XboxControllerState currentState = pollXboxController();
 
   // Define tolerance for joystick center position
   const float tolerance = 0.02; // 2% tolerance
 
-  // Joystick vertical values:
-  // - Center: 0.50 (with tolerance range for stopping)
-  // - Top: 0
-  // - Bottom: 1
-  if (state.joyLVertRate < (0.50 - tolerance))
+  // Static variable to store the previous state
+  static XboxControllerState previousState = {0.0, 0.0, false};
+
+  // Check if the state has changed
+  if (currentState.joyLVertRate != previousState.joyLVertRate)
   {
-    driveForwardMax();
-  }
-  else if (state.joyLVertRate > (0.50 + tolerance))
-  {
-    driveBackwardMax();
-  }
-  else
-  {
-    stopMotors();
+    // Joystick vertical values:
+    // - Center: 0.50 (with tolerance range for stopping)
+    // - Top: 0
+    // - Bottom: 1
+    if (currentState.joyLVertRate < (0.50 - tolerance))
+    {
+      driveForwardMax();
+    }
+    else if (currentState.joyLVertRate > (0.50 + tolerance))
+    {
+      driveBackwardMax();
+    }
+    else
+    {
+      stopMotors();
+    }
+
+    // Update the previous state
+    previousState = currentState;
   }
 
   // Add a small delay to prevent excessive polling
@@ -149,6 +159,7 @@ XboxControllerState pollXboxController()
 
 void driveForwardMax()
 {
+  Serial.println("driveForwardMax");
   // Set motors for forward motion
   digitalWrite(INA1_MC1, LOW);
   digitalWrite(INA2_MC1, LOW);
@@ -169,6 +180,7 @@ void driveForwardMax()
 
 void driveBackwardMax()
 {
+  Serial.println("driveBackwardMax");
   // Set motors for backward motion
   digitalWrite(INA1_MC1, HIGH);
   digitalWrite(INA2_MC1, HIGH);
@@ -189,6 +201,7 @@ void driveBackwardMax()
 
 void stopMotors()
 {
+  Serial.println("stopMotors");
   // Stop all motors
   digitalWrite(INA1_MC1, LOW);
   digitalWrite(INA2_MC1, LOW);
