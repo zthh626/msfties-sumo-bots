@@ -18,7 +18,7 @@ int INB1_MC2 = 14;
 int INB2_MC2 = 4;
 
 XboxSeriesXControllerESP32_asukiaaa::Core;
-char str[] XBOX_CONTROLLER_ADDRESS = "0c:35:26:e9:d8:e3";
+const char *XBOX_CONTROLLER_ADDRESS = "0c:35:26:e9:d8:e3";
 xboxController(XBOX_CONTROLLER_ADDRESS);
 
 void setupXboxController()
