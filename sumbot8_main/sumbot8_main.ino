@@ -110,6 +110,7 @@ XboxControllerState pollXboxController()
 {
   XboxControllerState state = {0.0, 0.0, false};
 
+  xboxController.onLoop();
   if (xboxController.isConnected())
   {
     if (xboxController.isWaitingForFirstNotification())
